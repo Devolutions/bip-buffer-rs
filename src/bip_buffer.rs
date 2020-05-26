@@ -77,7 +77,7 @@ impl Default for BipBuffer {
 }
 
 impl BipBuffer {
-    pub fn init(&mut self) -> bool {
+    fn init(&mut self) -> bool {
         if self.page_size == 0 {
             self.page_size = BIP_BUFFER_PAGE_SIZE;
         }
@@ -85,7 +85,7 @@ impl BipBuffer {
         self.alloc_buffer(self.size)
     }
 
-    pub fn uninit(&mut self) {
+    fn uninit(&mut self) {
         self.free_buffer();
     }
 
@@ -113,7 +113,7 @@ impl BipBuffer {
             return false;
         }
 
-        let size = size % self.page_size;
+        let size = size + size % self.page_size;
 
         unsafe {
             self.buffer = bip_malloc(size) as *mut u8;
@@ -175,6 +175,13 @@ impl BipBuffer {
         }
     }
 
+    pub fn write(&self, data: *const u8, size: usize) -> i32 {
+        unsafe {
+            let ctx = self as *const Self as CBipBuffer;
+            BipBuffer_Write(ctx, data, size)
+        }
+    }
+
     pub fn read_reserve(&mut self, size: usize) -> *const u8 {
         unsafe {
             let ctx = self as *const Self as CBipBuffer;
@@ -193,6 +200,13 @@ impl BipBuffer {
         unsafe {
             let ctx = self as *const Self as CBipBuffer;
             BipBuffer_ReadCommit(ctx, size);
+        }
+    }
+
+    pub fn read(&self, data: *mut u8, size: usize) -> i32 {
+        unsafe {
+            let ctx = self as *const Self as CBipBuffer;
+            BipBuffer_Read(ctx, data, size)
         }
     }
 }
