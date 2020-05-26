@@ -58,6 +58,7 @@ pub struct BipBuffer {
     pub block_b: BipBlock,
     pub read_r: BipBlock,
     pub write_r: BipBlock,
+    pub signaled: bool,
 }
 
 const BIP_BUFFER_PAGE_SIZE: usize = 4096;
@@ -72,6 +73,7 @@ impl Default for BipBuffer {
             block_b: BipBlock::default(),
             read_r: BipBlock::default(),
             write_r: BipBlock::default(),
+            signaled: false,
         }
     }
 }
@@ -154,6 +156,10 @@ impl BipBuffer {
         self.size
     }
 
+    pub fn is_signaled(&self) -> bool {
+        self.signaled
+    }
+
     pub fn write_reserve(&mut self, size: usize) -> *mut u8 {
         unsafe {
             let ctx = self as *const Self as CBipBuffer;
@@ -175,7 +181,7 @@ impl BipBuffer {
         }
     }
 
-    pub fn write(&self, data: *const u8, size: usize) -> i32 {
+    pub fn write(&mut self, data: *const u8, size: usize) -> i32 {
         unsafe {
             let ctx = self as *const Self as CBipBuffer;
             BipBuffer_Write(ctx, data, size)
@@ -203,7 +209,7 @@ impl BipBuffer {
         }
     }
 
-    pub fn read(&self, data: *mut u8, size: usize) -> i32 {
+    pub fn read(&mut self, data: *mut u8, size: usize) -> i32 {
         unsafe {
             let ctx = self as *const Self as CBipBuffer;
             BipBuffer_Read(ctx, data, size)

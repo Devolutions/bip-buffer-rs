@@ -30,9 +30,6 @@ void BipBuffer_ReadCommit(BipBuffer* ctx, size_t size);
 int BipBuffer_Read(BipBuffer* ctx, uint8_t* data, size_t size);
 int BipBuffer_Write(BipBuffer* ctx, const uint8_t* data, size_t size);
 
-BipBuffer* BipBuffer_New(size_t size, size_t pageSize);
-void BipBuffer_Free(BipBuffer* ctx);
-
 void* bip_malloc(size_t size);
 void bip_free(void* ptr);
 
@@ -68,6 +65,7 @@ struct bip_buffer
 	BipBlock blockB;
 	BipBlock readR;
 	BipBlock writeR;
+	bool signaled;
 };
 
 void BipBuffer_Lock(BipBuffer* ctx)
@@ -82,12 +80,12 @@ void BipBuffer_Unlock(BipBuffer* ctx)
 
 void BipBuffer_SetEvent(BipBuffer* ctx)
 {
-    // TODO: set event to signaled state
+	ctx->signaled = true; // set event to signaled state
 }
 
 void BipBuffer_ResetEvent(BipBuffer* ctx)
 {
-    // TODO: set event to non-signaled state
+	ctx->signaled = false; // set event to non-signaled state
 }
 
 void BipBlock_Clear(BipBlock* ctx)
@@ -108,23 +106,6 @@ void BipBuffer_Clear(BipBuffer* ctx)
 	BipBlock_Clear(&ctx->blockB);
 	BipBlock_Clear(&ctx->readR);
 	BipBlock_Clear(&ctx->writeR);
-}
-
-bool BipBuffer_AllocBuffer(BipBuffer* ctx, size_t size)
-{
-	if (size < 1)
-		return false;
-
-	size += size % ctx->pageSize;
-
-	ctx->buffer = (uint8_t*) bip_malloc(size);
-
-	if (!ctx->buffer)
-		return false;
-
-	ctx->size = size;
-
-	return true;
 }
 
 bool BipBuffer_Grow(BipBuffer* ctx, size_t size)
@@ -172,17 +153,6 @@ bool BipBuffer_Grow(BipBuffer* ctx, size_t size)
 	ctx->blockA.size = commitSize;
 
 	return true;
-}
-
-void BipBuffer_FreeBuffer(BipBuffer* ctx)
-{
-	if (ctx->buffer)
-	{
-		bip_free(ctx->buffer);
-		ctx->buffer = NULL;
-	}
-
-	BipBuffer_Clear(ctx);
 }
 
 size_t BipBuffer_UsedSize(BipBuffer* ctx)
@@ -510,52 +480,4 @@ exit:
     BipBuffer_Unlock(ctx);
 
 	return status;
-}
-
-bool BipBuffer_Init(BipBuffer* ctx)
-{
-    if (!ctx->pageSize)
-	    ctx->pageSize = BIP_BUFFER_PAGE_SIZE;
-
-	if (!BipBuffer_AllocBuffer(ctx, ctx->size))
-		return false;
-
-	return true;
-}
-
-void BipBuffer_Uninit(BipBuffer* ctx)
-{
-	BipBuffer_FreeBuffer(ctx);
-}
-
-BipBuffer* BipBuffer_New(size_t bufferSize, size_t pageSize)
-{
-	BipBuffer* ctx;
-
-	ctx = (BipBuffer*) bip_malloc(sizeof(BipBuffer));
-
-	if (!ctx)
-		return NULL;
-
-    memset(ctx, 0, sizeof(BipBuffer));
-	ctx->size = bufferSize;
-    ctx->pageSize = pageSize;
-
-	if (!BipBuffer_Init(ctx))
-	{
-		BipBuffer_Free(ctx);
-		return NULL;
-	}
-
-	return ctx;
-}
-
-void BipBuffer_Free(BipBuffer* ctx)
-{
-	if (!ctx)
-		return;
-
-	BipBuffer_Uninit(ctx);
-
-	bip_free(ctx);
 }
