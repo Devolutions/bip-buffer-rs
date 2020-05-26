@@ -46,6 +46,11 @@ void bip_free(void* ptr)
 	free(ptr);
 }
 
+void* bip_memcpy(void* dst, void* src, size_t size)
+{
+	return memcpy(dst, src, size);
+}
+
 #define BIP_BUFFER_PAGE_SIZE    4096
 
 struct bip_block
@@ -63,7 +68,6 @@ struct bip_buffer
 	BipBlock blockB;
 	BipBlock readR;
 	BipBlock writeR;
-	bool synchronized;
 };
 
 void BipBuffer_Lock(BipBuffer* ctx)
@@ -86,19 +90,24 @@ void BipBuffer_ResetEvent(BipBuffer* ctx)
     // TODO: set event to non-signaled state
 }
 
-#define BipBlock_Clear(_bbl) \
-	_bbl.index = _bbl.size = 0
+void BipBlock_Clear(BipBlock* ctx)
+{
+    ctx->index = 0;
+    ctx->size = 0;
+}
 
-#define BipBlock_Copy(_dst, _src) \
-	_dst.index = _src.index; \
-	_dst.size = _src.size
+void BipBlock_Copy(BipBlock* dst, BipBlock* src)
+{
+    dst->index = src->index;
+    dst->size = src->size;
+}
 
 void BipBuffer_Clear(BipBuffer* ctx)
 {
-	BipBlock_Clear(ctx->blockA);
-	BipBlock_Clear(ctx->blockB);
-	BipBlock_Clear(ctx->readR);
-	BipBlock_Clear(ctx->writeR);
+	BipBlock_Clear(&ctx->blockA);
+	BipBlock_Clear(&ctx->blockB);
+	BipBlock_Clear(&ctx->readR);
+	BipBlock_Clear(&ctx->writeR);
 }
 
 bool BipBuffer_AllocBuffer(BipBuffer* ctx, size_t size)
@@ -271,7 +280,7 @@ void BipBuffer_WriteCommit(BipBuffer* ctx, size_t size)
 
 	if (size == 0)
 	{
-		BipBlock_Clear(ctx->writeR);
+		BipBlock_Clear(&ctx->writeR);
 		goto exit;
 	}
 
@@ -282,7 +291,7 @@ void BipBuffer_WriteCommit(BipBuffer* ctx, size_t size)
 	{
 		ctx->blockA.index = ctx->writeR.index;
 		ctx->blockA.size = size;
-		BipBlock_Clear(ctx->writeR);
+		BipBlock_Clear(&ctx->writeR);
 		goto exit;
 	}
 
@@ -291,7 +300,7 @@ void BipBuffer_WriteCommit(BipBuffer* ctx, size_t size)
 	else
 		ctx->blockB.size += size;
 
-	BipBlock_Clear(ctx->writeR);
+	BipBlock_Clear(&ctx->writeR);
 
 exit:
 	newSize = (int) BipBuffer_UsedSize(ctx);
@@ -427,8 +436,8 @@ void BipBuffer_ReadCommit(BipBuffer* ctx, size_t size)
 
 	if (size >= ctx->blockA.size)
 	{
-		BipBlock_Copy(ctx->blockA, ctx->blockB);
-		BipBlock_Clear(ctx->blockB);
+		BipBlock_Copy(&ctx->blockA, &ctx->blockB);
+		BipBlock_Clear(&ctx->blockB);
 	}
 	else
 	{

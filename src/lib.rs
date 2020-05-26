@@ -1,7 +1,11 @@
+
+pub mod bip_buffer;
+
 #[cfg(test)]
 mod tests {
+    use crate::bip_buffer::*;
     #[test]
     fn it_works() {
-        assert_eq!(2 + 2, 4);
+        let block = BipBlock { index: 0, size: 0 };
     }
 }
